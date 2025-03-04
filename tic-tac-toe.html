@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tic Tac Toe with Minimax</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 50px;
+    }
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-gap: 5px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      background: #eee;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      cursor: pointer;
+    }
+    .cell.disabled {
+      pointer-events: none;
+    }
+    #message {
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+    #reset {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tic Tac Toe</h1>
+  <div id="board">
+    <!-- 9 cells for the game board -->
+    <div class="cell" data-index="0"></div>
+    <div class="cell" data-index="1"></div>
+    <div class="cell" data-index="2"></div>
+    <div class="cell" data-index="3"></div>
+    <div class="cell" data-index="4"></div>
+    <div class="cell" data-index="5"></div>
+    <div class="cell" data-index="6"></div>
+    <div class="cell" data-index="7"></div>
+    <div class="cell" data-index="8"></div>
+  </div>
+  <div id="message"></div>
+  <button id="reset">Reset Game</button>
+
+  <script>
+    // Game board represented as an array of 9 elements.
+    let board = Array(9).fill('');
+    // Human is 'X', Computer is 'O'
+    const huPlayer = 'X';
+    const aiPlayer = 'O';
+
+    // Winning combinations for Tic Tac Toe.
+    const winCombos = [
+      [0,1,2],
+      [3,4,5],
+      [6,7,8],
+      [0,3,6],
+      [1,4,7],
+      [2,5,8],
+      [0,4,8],
+      [2,4,6]
+    ];
+
+    const cells = document.querySelectorAll('.cell');
+    const messageEl = document.getElementById('message');
+    const resetBtn = document.getElementById('reset');
+
+    // Start the game.
+    startGame();
+
+    function startGame() {
+      board = Array(9).fill('');
+      messageEl.textContent = "";
+      for (let cell of cells) {
+        cell.textContent = "";
+        cell.classList.remove('disabled');
+        cell.addEventListener('click', handleCellClick, false);
+      }
+    }
+
+    // Handle a cell click by the human.
+    function handleCellClick(e) {
+      const idx = e.target.getAttribute('data-index');
+      // Only allow moves in empty cells.
+      if (board[idx] === '') {
+        makeMove(idx, huPlayer);
+        if (!checkGameOver(board, huPlayer)) {
+          // Let the AI make a move after a brief delay.
+          setTimeout(() => {
+            const bestMove = minimax(board, aiPlayer).index;
+            makeMove(bestMove, aiPlayer);
+            checkGameOver(board, aiPlayer);
+          }, 200);
+        }
+      }
+    }
+
+    // Place a move on the board.
+    function makeMove(index, player) {
+      board[index] = player;
+      cells[index].textContent = player;
+      cells[index].classList.add('disabled');
+    }
+
+    // Check if the game is over (win or tie).
+    function checkGameOver(board, player) {
+      if (winning(board, player)) {
+        endGame(player === huPlayer ? "You win!" : "Computer wins!");
+        return true;
+      } else if (emptyIndices(board).length === 0) {
+        endGame("Tie Game!");
+        return true;
+      }
+      return false;
+    }
+
+    // End the game by displaying a message and disabling further moves.
+    function endGame(result) {
+      messageEl.textContent = result;
+      for (let cell of cells) {
+        cell.classList.add('disabled');
+      }
+    }
+
+    // Check if a player has a winning combination.
+    function winning(board, player) {
+      for (let combo of winCombos) {
+        if (combo.every(index => board[index] === player)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Return the indices of empty cells on the board.
+    function emptyIndices(board) {
+      return board.map((val, index) => val === '' ? index : null).filter(val => val !== null);
+    }
+
+    // The Minimax algorithm.
+    function minimax(newBoard, player) {
+      let availSpots = emptyIndices(newBoard);
+
+      // Terminal states: win, lose, or tie.
+      if (winning(newBoard, huPlayer)) {
+        return { score: -10 };
+      } else if (winning(newBoard, aiPlayer)) {
+        return { score: 10 };
+      } else if (availSpots.length === 0) {
+        return { score: 0 };
+      }
+
+      // Collect the scores from each possible move.
+      let moves = [];
+
+      for (let i = 0; i < availSpots.length; i++) {
+        let move = {};
+        move.index = availSpots[i];
+        // Temporarily mark the spot for the current player.
+        newBoard[availSpots[i]] = player;
+
+        if (player === aiPlayer) {
+          let result = minimax(newBoard, huPlayer);
+          move.score = result.score;
+        } else {
+          let result = minimax(newBoard, aiPlayer);
+          move.score = result.score;
+        }
+
+        // Reset the spot.
+        newBoard[availSpots[i]] = '';
+        moves.push(move);
+      }
+
+      // Choose the best move depending on the player.
+      let bestMove;
+      if (player === aiPlayer) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score > bestScore) {
+            bestScore = moves[i].score;
+            bestMove = i;
+          }
+        }
+      } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score < bestScore) {
+            bestScore = moves[i].score;
+            bestMove = i;
+          }
+        }
+      }
+
+      return moves[bestMove];
+    }
+
+    // Reset button event listener.
+    resetBtn.addEventListener('click', startGame);
+  </script>
+</body>
+</html>
